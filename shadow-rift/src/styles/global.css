@@ -1,0 +1,350 @@
+/* ── Reset & Root Variables ─────────────────────────── */
+:root {
+  --red:  #ff2d55;
+  --blue: #00c8ff;
+  --gold: #ffd700;
+  --dark: #05050f;
+  --glow-r: 0 0 12px #ff2d55, 0 0 28px #ff2d5577;
+  --glow-b: 0 0 12px #00c8ff, 0 0 28px #00c8ff77;
+  --glow-g: 0 0 12px #ffd700, 0 0 28px #ffd70077;
+}
+
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--dark);
+  color: #fff;
+  font-family: 'Rajdhani', sans-serif;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Scanlines overlay ──────────────────────────────── */
+.scanlines {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.07) 2px,
+    rgba(0, 0, 0, 0.07) 4px
+  );
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+/* ── Vignette overlay ───────────────────────────────── */
+.vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 59;
+  background: radial-gradient(ellipse at center, transparent 45%, rgba(0, 0, 0, 0.65));
+  pointer-events: none;
+}
+
+/* ── Canvas layers ──────────────────────────────────── */
+canvas {
+  position: fixed;
+  inset: 0;
+  display: block;
+}
+.canvas-bg   { z-index: 1; }
+.canvas-game { z-index: 3; }
+.canvas-fx   { z-index: 4; }
+
+/* Hidden webcam video ───────────────────────────────── */
+.webcam-hidden { display: none; }
+
+/* ── Damage number pop ──────────────────────────────── */
+.dmg-num {
+  position: fixed;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  pointer-events: none;
+  z-index: 25;
+  animation: dmgAnim 0.9s forwards;
+}
+@keyframes dmgAnim {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-60px) scale(0.6); }
+}
+
+/* ── Action banner ───────────────────────────────────── */
+.action-banner {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 30;
+  pointer-events: none;
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(1.8rem, 6vw, 5rem);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0;
+  text-shadow: 0 0 40px currentColor, 0 0 80px currentColor;
+}
+.action-banner.show {
+  animation: bannerAnim 0.75s forwards;
+}
+@keyframes bannerAnim {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.35); }
+  20%  { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+  70%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+}
+
+/* ── Calibration overlay ─────────────────────────────── */
+.calib-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(5, 5, 15, 0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+}
+.calib-overlay h2 {
+  font-family: 'Orbitron', sans-serif;
+  color: var(--gold);
+  text-shadow: var(--glow-g);
+  font-size: 1.3rem;
+}
+.calib-countdown {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 5rem;
+  font-weight: 900;
+}
+.calib-overlay p {
+  color: rgba(255,255,255,0.8);
+  letter-spacing: 0.08em;
+  font-size: 0.88rem;
+}
+
+/* ── Generic neon button ─────────────────────────────── */
+.neon-btn {
+  background: transparent;
+  border: 2px solid var(--red);
+  color: var(--red);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1rem;
+  letter-spacing: 0.18em;
+  padding: 0.75rem 2.2rem;
+  cursor: pointer;
+  text-transform: uppercase;
+  box-shadow: var(--glow-r);
+  transition: color 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.neon-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--red);
+  transform: translateX(-101%);
+  transition: transform 0.3s;
+  z-index: -1;
+}
+.neon-btn:hover::before { transform: translateX(0); }
+.neon-btn:hover         { color: #fff; }
+
+/* ── HUD ─────────────────────────────────────────────── */
+.hud {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 20;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 0.9rem 1.1rem 0.5rem;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.78), transparent);
+  pointer-events: none;
+}
+
+.fighter-hud        { width: 42%; }
+.fighter-hud.right  { text-align: right; }
+
+.fighter-name {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(0.55rem, 1.3vw, 0.8rem);
+  letter-spacing: 0.14em;
+  margin-bottom: 0.28rem;
+}
+.fighter-hud.left  .fighter-name { color: var(--blue); text-shadow: var(--glow-b); }
+.fighter-hud.right .fighter-name { color: var(--red);  text-shadow: var(--glow-r); }
+
+.health-track {
+  height: 15px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.fighter-hud.right .health-track { direction: rtl; }
+
+.health-bar {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.18s ease;
+}
+.fighter-hud.left  .health-bar { background: linear-gradient(90deg, #00c8ff, #0088ff); box-shadow: var(--glow-b); }
+.fighter-hud.right .health-bar { background: linear-gradient(90deg, #ff6600, #ff2d55); box-shadow: var(--glow-r); float: right; }
+
+.power-row { display: flex; gap: 3px; margin-top: 0.3rem; }
+.fighter-hud.right .power-row { justify-content: flex-end; }
+
+.power-pip {
+  width: 14px; height: 5px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 1px;
+  transition: background 0.18s;
+}
+.power-pip.active { background: var(--gold); box-shadow: var(--glow-g); }
+
+.centre-hud {
+  width: 16%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+}
+.round-label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.58rem;
+  letter-spacing: 0.2em;
+  color: rgba(255,255,255,0.5);
+  text-transform: uppercase;
+}
+.timer {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(1.2rem, 3vw, 2rem);
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 0 18px rgba(255,255,255,0.2);
+}
+.timer.urgent {
+  color: var(--red);
+  text-shadow: var(--glow-r);
+  animation: urgentPulse 0.4s infinite alternate;
+}
+@keyframes urgentPulse { from { opacity: 1; } to { opacity: 0.45; } }
+
+/* ── Bottom HUD ──────────────────────────────────────── */
+.bottom-hud {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 20;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 0.6rem 1.1rem 0.75rem;
+  background: linear-gradient(to top, rgba(0,0,0,0.72), transparent);
+  pointer-events: none;
+}
+.pose-status {
+  font-size: 0.65rem;
+  letter-spacing: 0.09em;
+  color: rgba(255,255,255,0.35);
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+.pose-action {
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--blue);
+  text-shadow: var(--glow-b);
+  text-transform: uppercase;
+}
+
+/* ── PiP camera ──────────────────────────────────────── */
+.pip-cam {
+  width: 88px; height: 66px;
+  border: 1px solid rgba(0,200,255,0.3);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 0 8px rgba(0,200,255,0.18);
+}
+.pip-video {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+  opacity: 0.72;
+}
+.pip-label {
+  position: absolute;
+  bottom: 2px; left: 0; right: 0;
+  text-align: center;
+  font-size: 0.48rem;
+  letter-spacing: 0.14em;
+  color: rgba(0,200,255,0.7);
+  text-transform: uppercase;
+}
+
+/* ── On-screen control buttons ───────────────────────── */
+.ctrl-buttons {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 22;
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.7rem 0.9rem 0.85rem;
+  background: rgba(5, 5, 20, 0.6);
+  border-radius: 12px 12px 0 0;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-bottom: none;
+  pointer-events: all;
+}
+
+.ctrl-btn {
+  width: 64px; height: 64px;
+  border-radius: 12px;
+  border: 2px solid;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.55rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-weight: 700;
+  background: rgba(0,0,0,0.5);
+  transition: all 0.12s;
+  touch-action: none;
+}
+.ctrl-btn.pressed { transform: scale(0.88); }
+
+.ctrl-btn.move  { border-color: rgba(0,200,255,0.4); color: var(--blue); }
+.ctrl-btn.move.pressed  { background: rgba(0,200,255,0.13); box-shadow: 0 0 14px rgba(0,200,255,0.4); }
+
+.ctrl-btn.punch { border-color: rgba(255,215,0,0.6);  color: var(--gold); }
+.ctrl-btn.punch.pressed { background: rgba(255,215,0,0.13);  box-shadow: 0 0 14px rgba(255,215,0,0.4); }
+
+.ctrl-btn.kick  { border-color: rgba(255,102,0,0.6);  color: #ff6600; }
+.ctrl-btn.kick.pressed  { background: rgba(255,102,0,0.13);  box-shadow: 0 0 14px rgba(255,102,0,0.4); }
+
+.ctrl-btn.block { border-color: rgba(170,170,255,0.6); color: #aaaaff; }
+.ctrl-btn.block.pressed { background: rgba(170,170,255,0.13); box-shadow: 0 0 14px rgba(170,170,255,0.4); }
+
+.ctrl-btn.super { border-color: rgba(255,45,85,0.6);  color: var(--red); width: 72px; }
+.ctrl-btn.super.pressed { background: rgba(255,45,85,0.13);  box-shadow: 0 0 14px rgba(255,45,85,0.4); }
+.ctrl-btn.super.locked  { opacity: 0.35; cursor: default; }

@@ -1,0 +1,76 @@
+/* src/styles/screens.css */
+
+/* ── Shared screen base ─────────────────────────── */
+.screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+/* ── Title Screen ───────────────────────────────── */
+.title-screen {
+  background: radial-gradient(ellipse at 50% 60%, #1a0030, #05050f);
+}
+
+.title-logo {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(2.5rem, 7vw, 6rem);
+  font-weight: 900;
+  background: linear-gradient(135deg, #ff2d55 30%, #ffd700);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: logoPulse 2s ease-in-out infinite alternate;
+  margin-bottom: 0.3rem;
+}
+
+@keyframes logoPulse {
+  from { filter: drop-shadow(0 0 18px rgba(255,45,85,0.33)); }
+  to   { filter: drop-shadow(0 0 40px rgba(255,45,85,0.8)) drop-shadow(0 0 60px rgba(255,215,0,0.2)); }
+}
+
+.title-sub {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(0.55rem, 1.3vw, 0.85rem);
+  letter-spacing: 0.4em;
+  color: #00c8ff;
+  text-shadow: 0 0 12px #00c8ff, 0 0 28px rgba(0,200,255,0.47);
+  margin-bottom: 2rem;
+  text-transform: uppercase;
+}
+
+.title-hint {
+  margin-top: 1.2rem;
+  color: rgba(255,255,255,0.32);
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-align: center;
+  max-width: 440px;
+  line-height: 1.7;
+}
+
+/* ── Game Over Screen ───────────────────────────── */
+.gameover-screen {
+  background: radial-gradient(ellipse at 50% 40%, #1a0010, #05050f);
+  z-index: 100;
+}
+
+.gameover-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(2rem, 6vw, 5rem);
+  font-weight: 900;
+  margin-bottom: 0.7rem;
+  letter-spacing: 0.05em;
+}
+
+.gameover-sub {
+  font-size: 1.05rem;
+  letter-spacing: 0.22em;
+  color: rgba(255,255,255,0.5);
+  text-transform: uppercase;
+  margin-bottom: 2.2rem;
+}
