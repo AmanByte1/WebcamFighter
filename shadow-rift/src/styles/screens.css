@@ -53,6 +53,37 @@
   line-height: 1.7;
 }
 
+.title-player {
+  font-size: 0.9rem;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 0.08em;
+  margin-bottom: 0.5rem;
+}
+
+.title-nav {
+  display: flex;
+  gap: 0.8rem;
+  margin-top: 1.2rem;
+}
+
+.nav-btn {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.55);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 0.5rem 1.2rem;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+.nav-btn:hover {
+  border-color: #ffd700;
+  color: #ffd700;
+}
+
 /* ── Game Over Screen ───────────────────────────── */
 .gameover-screen {
   background: radial-gradient(ellipse at 50% 40%, #1a0010, #05050f);
