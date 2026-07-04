@@ -3,10 +3,12 @@
 
 const BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+// ── Base fetch wrapper ─────────────────────────────────
 async function request(path, options = {}) {
   try {
     const res = await fetch(`${BASE}${path}`, {
-      headers: { 'Content-Type': 'application/json' },
+      headers    : { 'Content-Type': 'application/json' },
+      credentials: 'include',   // ← sends session cookie with every request
       ...options,
     });
     const data = await res.json();
@@ -18,55 +20,92 @@ async function request(path, options = {}) {
   }
 }
 
-// ── Players ────────────────────────────────────────────
+// ══════════════════════════════════════════════════════
+//  SESSION  (Unit 5 — Express Session Management)
+// ══════════════════════════════════════════════════════
 
-/** Register or fetch a player by username */
-export async function registerPlayer(username) {
-  return request('/api/players/register', {
-    method : 'POST',
-    body   : JSON.stringify({ username }),
+/**
+ * Login — creates a server-side session stored in MongoDB.
+ * If user already has a session cookie, the server finds it
+ * automatically without re-typing the username.
+ */
+export async function sessionLogin(username) {
+  return request('/api/session/login', {
+    method: 'POST',
+    body  : JSON.stringify({ username }),
   });
 }
 
-/** Get a player's full profile */
+/**
+ * Check session — called on app load.
+ * Returns { loggedIn: true, player } if session exists.
+ * Returns { loggedIn: false } if not logged in.
+ */
+export async function checkSession() {
+  return request('/api/session/check');
+}
+
+/**
+ * Logout — destroys the session on the server
+ * and clears the cookie on the client.
+ */
+export async function sessionLogout() {
+  return request('/api/session/logout', { method: 'DELETE' });
+}
+
+/**
+ * Session info — shows raw session data (good for exam demo).
+ */
+export async function getSessionInfo() {
+  return request('/api/session/info');
+}
+
+// ══════════════════════════════════════════════════════
+//  PLAYERS
+// ══════════════════════════════════════════════════════
+
+export async function registerPlayer(username) {
+  return request('/api/players/register', {
+    method: 'POST',
+    body  : JSON.stringify({ username }),
+  });
+}
+
 export async function getPlayer(username) {
   return request(`/api/players/${encodeURIComponent(username)}`);
 }
 
-/** Get a player's recent match history */
 export async function getPlayerHistory(username, limit = 20) {
   return request(`/api/players/${encodeURIComponent(username)}/history?limit=${limit}`);
 }
 
-/** Get the global leaderboard */
 export async function getLeaderboard(limit = 20) {
   return request(`/api/players/leaderboard/top?limit=${limit}`);
 }
 
-// ── Matches ────────────────────────────────────────────
+// ══════════════════════════════════════════════════════
+//  MATCHES
+// ══════════════════════════════════════════════════════
 
-/**
- * Save a completed match.
- * @param {object} matchData - { username, result, playerRoundWins, aiRoundWins, rounds, stats, duration }
- */
 export async function saveMatch(matchData) {
   return request('/api/matches', {
-    method : 'POST',
-    body   : JSON.stringify(matchData),
+    method: 'POST',
+    body  : JSON.stringify(matchData),
   });
 }
 
-/** Get recent matches across all players */
 export async function getRecentMatches(limit = 10) {
   return request(`/api/matches/recent?limit=${limit}`);
 }
 
-/** Get global game statistics */
 export async function getGlobalStats() {
   return request('/api/matches/stats/global');
 }
 
-/** Check if backend is reachable */
+// ══════════════════════════════════════════════════════
+//  HEALTH
+// ══════════════════════════════════════════════════════
+
 export async function checkHealth() {
   try {
     const data = await request('/api/health');

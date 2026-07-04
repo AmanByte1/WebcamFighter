@@ -1,4 +1,4 @@
-// src/App.jsx  —  Shadow Rift main orchestrator (with MongoDB integration)
+// src/App.jsx  —  Shadow Rift (Session + MongoDB)
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 
 import { usePlayer }           from './context/PlayerContext.jsx';
@@ -7,7 +7,6 @@ import { saveMatch }           from './services/api.js';
 // Screens
 import { LoginScreen }         from './components/LoginScreen.jsx';
 import { TitleScreen }         from './components/TitleScreen.jsx';
-import { GameOverScreen }      from './components/GameOverScreen.jsx';
 import { MatchResultScreen }   from './components/MatchResultScreen.jsx';
 import { CalibrationOverlay }  from './components/CalibrationOverlay.jsx';
 import { Leaderboard }         from './components/Leaderboard.jsx';
@@ -26,14 +25,30 @@ import { usePoseDetection }    from './hooks/usePoseDetection.js';
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// Phases: 'login' | 'title' | 'calibrating' | 'playing' | 'result' | 'leaderboard' | 'profile'
 export default function App() {
-  const { player, offline } = usePlayer();
+  const { player, offline, loading: sessionLoading, logout } = usePlayer();
 
-  const [phase,       setPhase]       = useState('login');
+  // ── Phase ──────────────────────────────────────────
+  // 'loading' → 'login' → 'title' → 'calibrating' → 'playing' → 'result'
+  // 'leaderboard' and 'profile' can be reached from title or result
+  const [phase, setPhase] = useState('loading');
+
+  // ── Auto-restore session on app load ───────────────
+  // When PlayerContext finishes checking the session cookie:
+  // - Found valid session  → skip login, go to title
+  // - No session / expired → show login screen
+  useEffect(() => {
+    if (sessionLoading) return; // still checking
+    if (player) {
+      setPhase('title');         // session restored — skip login
+    } else {
+      setPhase('login');         // no session — show login
+    }
+  }, [sessionLoading, player]);
+
   const [calibCount,  setCalibCount]  = useState(3);
-  const [matchResult, setMatchResult] = useState(null);  // { playerWins, aiWins, stats }
-  const [matchSave,   setMatchSave]   = useState(null);  // server response after saving
+  const [matchResult, setMatchResult] = useState(null);
+  const [matchSave,   setMatchSave]   = useState(null);
 
   // HUD state
   const [playerHp,    setPlayerHp]    = useState(100);
@@ -50,27 +65,26 @@ export default function App() {
   const [bannerKey,   setBannerKey]   = useState(0);
 
   // Canvas & video refs
-  const bgRef    = useRef(null);
-  const gameRef  = useRef(null);
-  const fxRef    = useRef(null);
-  const webcamRef= useRef(null);
-  const pipRef   = useRef(null);
+  const bgRef     = useRef(null);
+  const gameRef   = useRef(null);
+  const fxRef     = useRef(null);
+  const webcamRef = useRef(null);
+  const pipRef    = useRef(null);
 
   // Button hold state
   const holdRef    = useRef({ left:false, right:false, block:false });
   const holdRafRef = useRef(null);
 
-  // Match stats accumulator (filled during game)
+  // Match stats
   const matchStatsRef = useRef({
     dmgDealt:0, dmgTaken:0, bestCombo:0, superMovesUsed:0,
-    punchesThrown:0, kicksThrown:0, blocksUsed:0, wasKO:false,
-    rounds:[], startTime: Date.now(),
+    punchesThrown:0, kicksThrown:0, blocksUsed:0,
+    wasKO:false, rounds:[], startTime: Date.now(),
   });
 
-  // Damage numbers
   const { numbers: dmgNumbers, showDamage } = useDamageNumbers();
 
-  // ── HUD callback ────────────────────────────────────
+  // ── Callbacks ──────────────────────────────────────
   const handleHudUpdate = useCallback((data) => {
     if (data.playerHp    !== undefined) setPlayerHp(Math.round(data.playerHp));
     if (data.playerPower !== undefined) setPlayerPower(Math.floor(data.playerPower));
@@ -81,55 +95,31 @@ export default function App() {
     if (data.superReady  !== undefined) setSuperReady(data.superReady);
   }, []);
 
-  // ── Banner callback ──────────────────────────────────
   const handleBanner = useCallback((text, color) => {
-    setBannerText(text);
-    setBannerColor(color || '#fff');
+    setBannerText(text); setBannerColor(color || '#fff');
     setBannerKey(k => k + 1);
   }, []);
 
-  // ── Round/game-end callback ──────────────────────────
   const handleRoundEnd = useCallback(async (type, pWins, aWins) => {
     if (type !== 'gameover') return;
-
     const result   = pWins > aWins ? 'win' : aWins > pWins ? 'loss' : 'draw';
     const ms       = matchStatsRef.current;
     const duration = Math.round((Date.now() - ms.startTime) / 1000);
-
-    const resultObj = { playerWins: pWins, aiWins: aWins, stats: ms };
-    setMatchResult(resultObj);
-
-    // Save to MongoDB if player is logged in and online
+    setMatchResult({ playerWins: pWins, aiWins: aWins, stats: ms });
     if (player?.username && !offline) {
       try {
         const saved = await saveMatch({
-          username        : player.username,
-          result,
-          playerRoundWins : pWins,
-          aiRoundWins     : aWins,
-          rounds          : ms.rounds,
-          stats           : { ...ms, wasKO: ms.wasKO },
-          duration,
+          username: player.username, result,
+          playerRoundWins: pWins, aiRoundWins: aWins,
+          rounds: ms.rounds, stats: { ...ms, wasKO: ms.wasKO }, duration,
         });
         setMatchSave(saved);
-      } catch (err) {
-        console.warn('Could not save match:', err.message);
-        setMatchSave(null);
-      }
+      } catch { setMatchSave(null); }
     }
-
     setPhase('result');
   }, [player, offline]);
 
-  // ── Damage number callback (also accumulates stats) ─
-  const handleDmgNumber = useCallback((x, y, dmg, color, isPlayer) => {
-    showDamage(x, y, dmg, color);
-    const ms = matchStatsRef.current;
-    if (isPlayer) ms.dmgTaken += dmg;
-    else          ms.dmgDealt += dmg;
-  }, [showDamage]);
-
-  // ── Game loop ────────────────────────────────────────
+  // ── Game loop hook ──────────────────────────────────
   const { startRound, dispatchAction, movePlayer, resetGame } = useGameLoop({
     bgRef, gameRef, fxRef,
     onHudUpdate   : handleHudUpdate,
@@ -138,16 +128,14 @@ export default function App() {
     onDamageNumber: (x,y,dmg,col) => showDamage(x,y,dmg,col),
   });
 
-  // ── Pose detection ───────────────────────────────────
+  // ── Pose detection ──────────────────────────────────
   const [poseEnabled, setPoseEnabled] = useState(false);
   const { status: poseStatus, action: poseAction } = usePoseDetection({
-    videoRef : webcamRef,
-    onAction : dispatchAction,
-    onMove   : movePlayer,
-    enabled  : poseEnabled,
+    videoRef: webcamRef, onAction: dispatchAction,
+    onMove: movePlayer,  enabled: poseEnabled,
   });
 
-  // ── Keyboard fallback ────────────────────────────────
+  // ── Keyboard ────────────────────────────────────────
   useEffect(() => {
     if (phase !== 'playing') return;
     const keys = {};
@@ -166,7 +154,7 @@ export default function App() {
     return () => { window.removeEventListener('keydown',onDown); window.removeEventListener('keyup',onUp); };
   }, [phase, dispatchAction, movePlayer]);
 
-  // ── Button hold loop ─────────────────────────────────
+  // ── Button hold loop ────────────────────────────────
   useEffect(() => {
     if (phase !== 'playing') return;
     function loop(){
@@ -180,16 +168,14 @@ export default function App() {
     return () => cancelAnimationFrame(holdRafRef.current);
   }, [phase, dispatchAction, movePlayer]);
 
-  // ── Start game ───────────────────────────────────────
+  // ── Handlers ────────────────────────────────────────
   const handleStart = useCallback(async () => {
-    setPhase('calibrating');
-    setCalibCount(3);
+    setPhase('calibrating'); setCalibCount(3);
     matchStatsRef.current = {
       dmgDealt:0, dmgTaken:0, bestCombo:0, superMovesUsed:0,
       punchesThrown:0, kicksThrown:0, blocksUsed:0,
       wasKO:false, rounds:[], startTime: Date.now(),
     };
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video:{ width:{ideal:640}, height:{ideal:480}, facingMode:'user' }, audio:false,
@@ -197,19 +183,16 @@ export default function App() {
       if (webcamRef.current){ webcamRef.current.srcObject=stream; await webcamRef.current.play(); }
       if (pipRef.current)   { pipRef.current.srcObject=stream; pipRef.current.play().catch(()=>{}); }
     } catch(e){ console.warn('Camera unavailable:', e.name); }
-
     for (let i=3; i>=1; i--){ setCalibCount(i); await sleep(1000); }
     setPoseEnabled(true);
     setPhase('playing');
     startRound();
   }, [startRound]);
 
-  // ── Retry ────────────────────────────────────────────
   const handleRetry = useCallback(() => {
     setPhase('playing');
-    setPlayerHp(100); setAiHp(100);
-    setPlayerPower(0); setAiPower(0);
-    setTimer(60); setRound(1);
+    setPlayerHp(100); setAiHp(100); setPlayerPower(0);
+    setAiPower(0);    setTimer(60); setRound(1);
     matchStatsRef.current = {
       dmgDealt:0, dmgTaken:0, bestCombo:0, superMovesUsed:0,
       punchesThrown:0, kicksThrown:0, blocksUsed:0,
@@ -218,10 +201,16 @@ export default function App() {
     resetGame();
   }, [resetGame]);
 
-  // ── Login complete ───────────────────────────────────
+  // ── Logout — destroys session, goes back to login ───
+  const handleLogout = useCallback(async () => {
+    await logout();
+    setPhase('login');
+    setMatchResult(null);
+    setMatchSave(null);
+  }, [logout]);
+
   const handleLogin = useCallback(() => setPhase('title'), []);
 
-  // ── Button handlers ──────────────────────────────────
   const handleMoveStart = useCallback((dir) => {
     if (dir==='left')  holdRef.current.left =true;
     if (dir==='right') holdRef.current.right=true;
@@ -231,84 +220,77 @@ export default function App() {
     holdRef.current.left=holdRef.current.right=holdRef.current.block=false;
   },[]);
 
+  // ── Render ──────────────────────────────────────────
   return (
     <>
-      {/* Atmosphere */}
       <div className="scanlines" />
       <div className="vignette"  />
-
-      {/* Hidden webcam */}
       <video ref={webcamRef} className="webcam-hidden" playsInline muted autoPlay />
-
-      {/* Canvas layers — always mounted so game loop runs */}
       <canvas ref={bgRef}   id="canvas-bg"   className="canvas-bg"   />
       <canvas ref={gameRef} id="canvas-game" className="canvas-game" />
       <canvas ref={fxRef}   id="canvas-fx"   className="canvas-fx"   />
 
-      {/* ── LOGIN ── */}
+      {/* Loading — checking session */}
+      {phase === 'loading' && (
+        <div className="screen" style={{ background:'#05050f' }}>
+          <div style={{ fontFamily:'Orbitron,sans-serif', color:'#ffffff33',
+                        fontSize:'1rem', letterSpacing:'.3em' }}>
+            LOADING…
+          </div>
+        </div>
+      )}
+
+      {/* Login */}
       {phase === 'login' && <LoginScreen onLogin={handleLogin} />}
 
-      {/* ── TITLE ── */}
+      {/* Title */}
       {phase === 'title' && (
         <TitleScreen
           onStart={handleStart}
           onLeaderboard={() => setPhase('leaderboard')}
           onProfile={() => setPhase('profile')}
-          playerName={player?.username}
-          offline={offline}
+          onLogout={handleLogout}
         />
       )}
 
-      {/* ── CALIBRATING ── */}
+      {/* Calibrating */}
       {phase === 'calibrating' && <CalibrationOverlay countdown={calibCount} />}
 
-      {/* ── IN-GAME ── */}
+      {/* Playing */}
       {phase === 'playing' && (
         <>
-          <HUD
-            playerHp={playerHp} playerPower={playerPower}
-            aiHp={aiHp}         aiPower={aiPower}
-            timer={timer}       round={round}
-          />
+          <HUD playerHp={playerHp} playerPower={playerPower}
+               aiHp={aiHp} aiPower={aiPower} timer={timer} round={round} />
           <ActionBanner key={bannerKey} text={bannerText} color={bannerColor} />
           <BottomHUD poseStatus={poseStatus} poseAction={poseAction} pipVideoRef={pipRef} />
-          <ControlButtons
-            onAction={dispatchAction}
-            onMoveStart={handleMoveStart}
-            onMoveEnd={handleMoveEnd}
-            superReady={superReady}
-          />
+          <ControlButtons onAction={dispatchAction}
+            onMoveStart={handleMoveStart} onMoveEnd={handleMoveEnd}
+            superReady={superReady} />
         </>
       )}
 
-      {/* ── MATCH RESULT ── */}
+      {/* Result */}
       {phase === 'result' && matchResult && (
         <MatchResultScreen
-          result={matchResult}
-          matchSave={matchSave}
+          result={matchResult} matchSave={matchSave}
           onPlayAgain={handleRetry}
           onLeaderboard={() => setPhase('leaderboard')}
           onProfile={() => setPhase('profile')}
         />
       )}
 
-      {/* ── LEADERBOARD ── */}
+      {/* Leaderboard */}
       {phase === 'leaderboard' && (
-        <Leaderboard
-          currentUsername={player?.username}
-          onClose={() => setPhase(matchResult ? 'result' : 'title')}
-        />
+        <Leaderboard currentUsername={player?.username}
+          onClose={() => setPhase(matchResult ? 'result' : 'title')} />
       )}
 
-      {/* ── PROFILE ── */}
+      {/* Profile */}
       {phase === 'profile' && player && (
-        <PlayerProfile
-          player={player}
-          onClose={() => setPhase(matchResult ? 'result' : 'title')}
-        />
+        <PlayerProfile player={player}
+          onClose={() => setPhase(matchResult ? 'result' : 'title')} />
       )}
 
-      {/* Damage numbers always on top */}
       <DamageNumbers numbers={dmgNumbers} />
     </>
   );
