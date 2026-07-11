@@ -34,15 +34,18 @@ export default function App() {
   const [phase, setPhase] = useState('loading');
 
   // ── Auto-restore session on app load ───────────────
-  // When PlayerContext finishes checking the session cookie:
-  // - Found valid session  → skip login, go to title
-  // - No session / expired → show login screen
+  // Use a ref to make sure this only runs ONCE when sessionLoading
+  // goes from true → false. Never runs again even if player changes.
+  const sessionChecked = useRef(false);
   useEffect(() => {
-    if (sessionLoading) return; // still checking
+    if (sessionLoading)       return; // still checking
+    if (sessionChecked.current) return; // already ran once — don't run again
+    sessionChecked.current = true;
+
     if (player) {
-      setPhase('title');         // session restored — skip login
+      setPhase('title');  // session found — skip login
     } else {
-      setPhase('login');         // no session — show login
+      setPhase('login');  // no session — show login
     }
   }, [sessionLoading, player]);
 

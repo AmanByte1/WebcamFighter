@@ -16,11 +16,23 @@ const PORT      = process.env.PORT      || 5000;
 const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/shadow-rift';
 const SECRET    = process.env.SESSION_SECRET || 'shadow-rift-secret-key-2025';
 
-// ── CORS — must come before session so preflight works ─
+// ── CORS — allow any localhost port for dev ────────────
+const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map(o => o.trim());
+
 app.use(cors({
-  origin     : process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+    // Allow any localhost port in development
+    if (origin.match(/^http:\/\/localhost:\d+$/)) return callback(null, true);
+    // Allow configured origins in production
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS blocked: ${origin}`));
+  },
   methods    : ['GET', 'POST', 'DELETE'],
-  credentials: true,   // ← required for cookies/sessions to be sent cross-origin
+  credentials: true,
 }));
 
 app.use(express.json());
