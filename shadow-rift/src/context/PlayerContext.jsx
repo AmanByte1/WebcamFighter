@@ -88,9 +88,18 @@ export function PlayerProvider({ children }) {
     } catch { /* silent */ }
   }, [player, offline]);
 
-  // ── Update player locally (optimistic update) ──────
+  // ── Update player locally (deep merge) ───────────────
   const updatePlayerLocally = useCallback((updates) => {
-    setPlayer(prev => prev ? { ...prev, ...updates } : prev);
+    setPlayer(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        ...updates,
+        // Deep merge stats so individual fields don't get wiped
+        stats: { ...(prev.stats || {}), ...(updates.stats || {}) },
+        rank : { ...(prev.rank  || {}), ...(updates.rank  || {}) },
+      };
+    });
   }, []);
 
   return (

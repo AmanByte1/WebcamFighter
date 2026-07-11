@@ -26,7 +26,7 @@ import { usePoseDetection }    from './hooks/usePoseDetection.js';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 export default function App() {
-  const { player, offline, loading: sessionLoading, logout } = usePlayer();
+  const { player, offline, loading: sessionLoading, logout, refreshPlayer } = usePlayer();
 
   // ── Phase ──────────────────────────────────────────
   // 'loading' → 'login' → 'title' → 'calibrating' → 'playing' → 'result'
@@ -114,6 +114,8 @@ export default function App() {
           rounds: ms.rounds, stats: { ...ms, wasKO: ms.wasKO }, duration,
         });
         setMatchSave(saved);
+        // ── Refresh player context so Profile shows updated stats ──
+        await refreshPlayer();
       } catch { setMatchSave(null); }
     }
     setPhase('result');
