@@ -22,6 +22,7 @@ export function Leaderboard({ currentUsername, onClose }) {
   const [lastUpdated, setLastUpdated] = useState(null);
 
   // ── Fetch leaderboard data ─────────────────────────
+  // Empty deps [] — stable function, never recreates
   const fetchBoard = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     setRefreshing(true);
@@ -36,7 +37,7 @@ export function Leaderboard({ currentUsername, onClose }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, []); // ← empty deps — no external values used inside
 
   // ── Fetch on open ──────────────────────────────────
   useEffect(() => {

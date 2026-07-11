@@ -60,28 +60,36 @@ function MatchRow({ match }) {
 export function PlayerProfile({ onClose }) {
   const { player: ctxPlayer, updatePlayerLocally } = usePlayer();
 
+  // Keep a stable ref to updatePlayerLocally so it never causes re-renders
+  const updateRef = React.useRef(updatePlayerLocally);
+  useEffect(() => { updateRef.current = updatePlayerLocally; }, [updatePlayerLocally]);
+
+  // Keep a stable ref to username so fetchFresh never needs it as a dep
+  const usernameRef = React.useRef(ctxPlayer?.username);
+  useEffect(() => { usernameRef.current = ctxPlayer?.username; }, [ctxPlayer?.username]);
+
   // Fresh data fetched directly from DB
   const [freshPlayer, setFreshPlayer] = useState(null);
-  const [prevStats,   setPrevStats]   = useState(null); // for change indicators
+  const [prevStats,   setPrevStats]   = useState(null);
   const [history,     setHistory]     = useState([]);
   const [loadingData, setLoadingData] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [refreshing,  setRefreshing]  = useState(false);
 
   // ── Fetch fresh data from DB ───────────────────────
+  // useCallback with NO deps — uses refs instead, so it never recreates
   const fetchFresh = useCallback(async (silent = false) => {
-    if (!ctxPlayer?.username) return;
+    const username = usernameRef.current;
+    if (!username) return;
     if (!silent) setLoadingData(true);
     setRefreshing(true);
 
     try {
-      // Fetch player stats and match history in parallel
       const [playerRes, historyRes] = await Promise.all([
-        getPlayer(ctxPlayer.username),
-        getPlayerHistory(ctxPlayer.username, 15),
+        getPlayer(username),
+        getPlayerHistory(username, 15),
       ]);
 
-      // Save previous stats so we can show change indicators
       setFreshPlayer(prev => {
         if (prev) setPrevStats(prev.stats);
         return playerRes.player;
@@ -90,8 +98,8 @@ export function PlayerProfile({ onClose }) {
       setHistory(historyRes.matches || []);
       setLastUpdated(new Date());
 
-      // Also update PlayerContext so HUD/title reflects new data
-      updatePlayerLocally(playerRes.player);
+      // Update context via ref — does NOT trigger re-render of this component
+      updateRef.current(playerRes.player);
 
     } catch (err) {
       console.warn('Profile refresh failed:', err.message);
@@ -99,7 +107,7 @@ export function PlayerProfile({ onClose }) {
       setLoadingData(false);
       setRefreshing(false);
     }
-  }, [ctxPlayer?.username, updatePlayerLocally]);
+  }, []); // ← empty deps — stable forever, uses refs internally
 
   // ── Fetch on mount (when profile opens) ───────────
   useEffect(() => {
