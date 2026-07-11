@@ -30,10 +30,25 @@ async function request(path, options = {}) {
  * automatically without re-typing the username.
  */
 export async function sessionLogin(username) {
-  return request('/api/session/login', {
-    method: 'POST',
-    body  : JSON.stringify({ username }),
-  });
+  try {
+    return await request('/api/session/login', {
+      method: 'POST',
+      body  : JSON.stringify({ username }),
+    });
+  } catch (err) {
+    // Offline fallback: create guest profile
+    console.warn('Backend unavailable, switching to offline mode');
+    return {
+      player: {
+        username,
+        stats       : {},
+        achievements: [],
+        rank        : { points: 0, tier: 'Bronze' },
+      },
+      isNew: true,
+      offline: true,
+    };
+  }
 }
 
 /**
@@ -42,7 +57,13 @@ export async function sessionLogin(username) {
  * Returns { loggedIn: false } if not logged in.
  */
 export async function checkSession() {
-  return request('/api/session/check');
+  try {
+    return await request('/api/session/check');
+  } catch (err) {
+    // Offline mode: no session
+    console.warn('Backend unavailable, skipping session check');
+    return { loggedIn: false };
+  }
 }
 
 /**
@@ -50,14 +71,24 @@ export async function checkSession() {
  * and clears the cookie on the client.
  */
 export async function sessionLogout() {
-  return request('/api/session/logout', { method: 'DELETE' });
+  try {
+    return await request('/api/session/logout', { method: 'DELETE' });
+  } catch (err) {
+    // Offline: just clear locally
+    console.warn('Backend unavailable, clearing local session');
+    return { success: true };
+  }
 }
 
 /**
  * Session info — shows raw session data (good for exam demo).
  */
 export async function getSessionInfo() {
-  return request('/api/session/info');
+  try {
+    return await request('/api/session/info');
+  } catch (err) {
+    return { offline: true };
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -65,22 +96,38 @@ export async function getSessionInfo() {
 // ══════════════════════════════════════════════════════
 
 export async function registerPlayer(username) {
-  return request('/api/players/register', {
-    method: 'POST',
-    body  : JSON.stringify({ username }),
-  });
+  try {
+    return await request('/api/players/register', {
+      method: 'POST',
+      body  : JSON.stringify({ username }),
+    });
+  } catch (err) {
+    return { player: { username, stats: {}, achievements: [], rank: { points: 0, tier: 'Bronze' } } };
+  }
 }
 
 export async function getPlayer(username) {
-  return request(`/api/players/${encodeURIComponent(username)}`);
+  try {
+    return await request(`/api/players/${encodeURIComponent(username)}`);
+  } catch (err) {
+    return { player: { username, stats: {}, achievements: [], rank: { points: 0, tier: 'Bronze' } } };
+  }
 }
 
 export async function getPlayerHistory(username, limit = 20) {
-  return request(`/api/players/${encodeURIComponent(username)}/history?limit=${limit}`);
+  try {
+    return await request(`/api/players/${encodeURIComponent(username)}/history?limit=${limit}`);
+  } catch (err) {
+    return { history: [] };
+  }
 }
 
 export async function getLeaderboard(limit = 20) {
-  return request(`/api/players/leaderboard/top?limit=${limit}`);
+  try {
+    return await request(`/api/players/leaderboard/top?limit=${limit}`);
+  } catch (err) {
+    return { leaderboard: [] };
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -88,18 +135,31 @@ export async function getLeaderboard(limit = 20) {
 // ══════════════════════════════════════════════════════
 
 export async function saveMatch(matchData) {
-  return request('/api/matches', {
-    method: 'POST',
-    body  : JSON.stringify(matchData),
-  });
+  try {
+    return await request('/api/matches', {
+      method: 'POST',
+      body  : JSON.stringify(matchData),
+    });
+  } catch (err) {
+    console.warn('Could not save match to database');
+    return { success: false, offline: true };
+  }
 }
 
 export async function getRecentMatches(limit = 10) {
-  return request(`/api/matches/recent?limit=${limit}`);
+  try {
+    return await request(`/api/matches/recent?limit=${limit}`);
+  } catch (err) {
+    return { matches: [] };
+  }
 }
 
 export async function getGlobalStats() {
-  return request('/api/matches/stats/global');
+  try {
+    return await request('/api/matches/stats/global');
+  } catch (err) {
+    return { stats: {} };
+  }
 }
 
 // ── Health ─────────────────────────────────────────────
@@ -110,9 +170,3 @@ export async function checkHealth() {
     return data.status === 'ok';
   } catch { return false; }
 }
-
-// These are available for future features or exam demo purposes
-export async function getSessionInfo()     { return request('/api/session/info'); }
-export async function registerPlayer(u)    { return request('/api/players/register', { method:'POST', body: JSON.stringify({ username: u }) }); }
-export async function getRecentMatches(n=10){ return request(`/api/matches/recent?limit=${n}`); }
-export async function getGlobalStats()     { return request('/api/matches/stats/global'); }
