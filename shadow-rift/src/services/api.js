@@ -102,15 +102,17 @@ export async function getGlobalStats() {
   return request('/api/matches/stats/global');
 }
 
-// ══════════════════════════════════════════════════════
-//  HEALTH
-// ══════════════════════════════════════════════════════
-
+// ── Health ─────────────────────────────────────────────
+// Available but not called in UI — useful for exam demo / testing
 export async function checkHealth() {
   try {
     const data = await request('/api/health');
     return data.status === 'ok';
-  } catch {
-    return false;
-  }
+  } catch { return false; }
 }
+
+// These are available for future features or exam demo purposes
+export async function getSessionInfo()     { return request('/api/session/info'); }
+export async function registerPlayer(u)    { return request('/api/players/register', { method:'POST', body: JSON.stringify({ username: u }) }); }
+export async function getRecentMatches(n=10){ return request(`/api/matches/recent?limit=${n}`); }
+export async function getGlobalStats()     { return request('/api/matches/stats/global'); }

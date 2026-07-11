@@ -127,6 +127,10 @@ export function useGameLoop({
   }, [spark, onDamageNumber]);
 
   // ── Round / game management ────────────────────────────
+  // Use a ref for startRound so endRound can call it without
+  // circular deps (endRound → startRound → endRound loop)
+  const startRoundRef = useRef(null);
+
   const endRound = useCallback(async (who) => {
     const gs = gsRef.current;
     gs.running = false;
@@ -150,9 +154,10 @@ export function useGameLoop({
       if (onRoundEnd) onRoundEnd('gameover', gs.pWins, gs.aWins);
     } else {
       gs.round++;
-      startRound();
+      // Call via ref — avoids circular dep with startRound
+      startRoundRef.current?.();
     }
-  }, [onBanner, onRoundEnd]);
+  }, [onBanner, onRoundEnd]); // no startRound dep needed — uses ref
 
   const checkRoundEnd = useCallback(() => {
     const gs     = gsRef.current;
@@ -191,6 +196,11 @@ export function useGameLoop({
     gs.running = true;
     startTimer();
   }, [initFighters, onBanner, onHudUpdate, startTimer]);
+
+  // Register startRound in ref so endRound can call it without circular dep
+  useEffect(() => {
+    startRoundRef.current = startRound;
+  }, [startRound]);
 
   // ── Apply player pose / button action ──────────────────
   const applyPlayerAction = useCallback((action) => {

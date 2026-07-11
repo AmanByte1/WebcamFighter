@@ -122,7 +122,7 @@ export default function App() {
       } catch { setMatchSave(null); }
     }
     setPhase('result');
-  }, [player, offline]);
+  }, [player, offline, refreshPlayer]);
 
   // ── Game loop hook ──────────────────────────────────
   const { startRound, dispatchAction, movePlayer, resetGame } = useGameLoop({
